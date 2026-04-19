@@ -1,5 +1,14 @@
 const Listing = require("../models/listing.js");
 
+const getUploadedImageData = (file) => {
+  if (!file) return null;
+
+  return {
+    url: file.path || file.secure_url || file.url,
+    filename: file.filename || file.public_id,
+  };
+};
+
 //------------ GET ALL LISTINGS ---------------------------------
 module.exports.index = async (req, res) => {
   const allListings = await Listing.find({});
@@ -14,11 +23,13 @@ module.exports.newListingForm = async (req, res) => {
 
 //---------- CREATE ROUTE --------------------------------------
 module.exports.createListing = async (req, res, next) => {
-  let url = req.file.path;
-  let filename = req.file.filename;
-  console.log(url, "..", filename);
   let listingData = req.body.listing;
-  listingData.image = { url, filename };
+  const uploadedImage = getUploadedImageData(req.file);
+
+  if (uploadedImage?.url) {
+    listingData.image = uploadedImage;
+  }
+
   let newListing = new Listing(listingData);
   newListing.owner = req.user._id;
   await newListing.save();
@@ -41,10 +52,12 @@ module.exports.updateListing = async (req, res) => {
   let listing = await Listing.findByIdAndUpdate(id, updatedListing);
 
   if (typeof req.file !== "undefined") {
-    let url = req.file.path;
-    let filename = req.file.filename;
-    listing.image = { url, filename };
-    await listing.save();
+    const uploadedImage = getUploadedImageData(req.file);
+
+    if (uploadedImage?.url) {
+      listing.image = uploadedImage;
+      await listing.save();
+    }
   }
 
   req.flash("success", "Listing Updated Successfully !!");
